@@ -543,6 +543,7 @@ void homeform::trainProgramSignals() {
     if (bluetoothManager->device()) {
         disconnect(trainProgram, &trainprogram::start, bluetoothManager->device(), &bluetoothdevice::start);
         disconnect(trainProgram, &trainprogram::stop, bluetoothManager->device(), &bluetoothdevice::stop);
+        disconnect(bluetoothManager->device(), &bluetoothdevice::deviceStateChanged, this, &homeform::deviceStateChanged);
         disconnect(trainProgram, &trainprogram::changeSpeed, ((treadmill *)bluetoothManager->device()),
                    &treadmill::changeSpeed);
         disconnect(trainProgram, &trainprogram::changeInclination, ((treadmill *)bluetoothManager->device()),
@@ -573,6 +574,7 @@ void homeform::trainProgramSignals() {
 
         connect(trainProgram, &trainprogram::start, bluetoothManager->device(), &bluetoothdevice::start);
         connect(trainProgram, &trainprogram::stop, bluetoothManager->device(), &bluetoothdevice::stop);
+        connect(bluetoothManager->device(), &bluetoothdevice::deviceStateChanged, this, &homeform::deviceStateChanged);
         connect(trainProgram, &trainprogram::changeCadence, ((bike *)bluetoothManager->device()), &bike::changeCadence);
         if (bluetoothManager->device()->deviceType() == bluetoothdevice::TREADMILL) {
             connect(trainProgram, &trainprogram::changeSpeed, ((treadmill *)bluetoothManager->device()),
@@ -627,6 +629,23 @@ void homeform::gearUp() {
 void homeform::gearDown() {
     if (autoResistance())
         Minus(QStringLiteral("gears"));
+}
+
+void homeform::deviceStateChanged(uint8_t state) {
+    qDebug() << QStringLiteral("update device state") << state;
+    switch (state) {
+        case 1:
+            if (requestPause) {
+                onPaused();
+            } else {
+                onStopped();
+            }
+            requestPause = false;
+            break;
+        case 2:
+            onStarted();
+            break;
+    }
 }
 
 void homeform::ftmsAccessoryConnected(smartspin2k *d) {
@@ -1818,48 +1837,77 @@ void homeform::Start_inner(bool send_event_to_device) {
     qDebug() << QStringLiteral("Start pressed - paused") << paused << QStringLiteral("stopped") << stopped;
 
     if (!paused && !stopped) {
-
-        paused = true;
         if (bluetoothManager->device() && send_event_to_device) {
             bluetoothManager->device()->stop();
         }
-        emit workoutEventStateChanged(bluetoothdevice::PAUSED);
+        if (bluetoothManager->device()->supportStateMachine()) {
+            requestPause = true;
+            return;
+        }
+        onPaused();
     } else {
 
         if (bluetoothManager->device() && send_event_to_device) {
             bluetoothManager->device()->start();
         }
 
-        if (stopped) {
-            trainProgram->restart();
-            if (bluetoothManager->device()) {
-
-                bluetoothManager->device()->clearStats();
-            }
-            Session.clear();
-            chartImagesFilenames.clear();
-
-            if (!pelotonHandler || (pelotonHandler && !pelotonHandler->isWorkoutInProgress())) {
-                stravaPelotonActivityName = QLatin1String("");
-                stravaPelotonInstructorName = QLatin1String("");
-                stravaPelotonWorkoutType = FIT_SPORT_INVALID;
-                emit workoutNameChanged(workoutName());
-                emit instructorNameChanged(instructorName());
-            }
-            emit workoutEventStateChanged(bluetoothdevice::STARTED);
-        } else {
-            // if loading a training program (gpx or xml) directly from the startup of QZ, there is no way to start the
-            // program otherwise
-            if (!trainProgram->isStarted()) {
-                qDebug() << QStringLiteral("starting training program from a resume");
-                trainProgram->restart();
-            }
-            emit workoutEventStateChanged(bluetoothdevice::RESUMED);
+        if (bluetoothManager->device()->supportStateMachine()) {
+            return;
         }
-
-        paused = false;
-        stopped = false;
+        onStarted();
     }
+}
+
+void homeform::onPaused() {
+    paused = true;
+    emit workoutEventStateChanged(bluetoothdevice::PAUSED);
+
+    QSettings settings;
+    if (settings.value(QStringLiteral("top_bar_enabled"), true).toBool()) {
+
+        emit stopIconChanged(stopIcon());
+        emit stopTextChanged(stopText());
+        emit stopColorChanged(stopColor());
+        emit startIconChanged(startIcon());
+        emit startTextChanged(startText());
+        emit startColorChanged(startColor());
+    }
+
+    if (bluetoothManager->device()) {
+        bluetoothManager->device()->setPaused(paused | stopped);
+    }
+}
+
+void homeform::onStarted() {
+    if (stopped) {
+        trainProgram->restart();
+        if (bluetoothManager->device()) {
+
+            bluetoothManager->device()->clearStats();
+        }
+        Session.clear();
+        chartImagesFilenames.clear();
+
+        if (!pelotonHandler || (pelotonHandler && !pelotonHandler->isWorkoutInProgress())) {
+            stravaPelotonActivityName = QLatin1String("");
+            stravaPelotonInstructorName = QLatin1String("");
+            stravaPelotonWorkoutType = FIT_SPORT_INVALID;
+            emit workoutNameChanged(workoutName());
+            emit instructorNameChanged(instructorName());
+        }
+        emit workoutEventStateChanged(bluetoothdevice::STARTED);
+    } else {
+        // if loading a training program (gpx or xml) directly from the startup of QZ, there is no way to start the
+        // program otherwise
+        if (!trainProgram->isStarted()) {
+            qDebug() << QStringLiteral("starting training program from a resume");
+            trainProgram->restart();
+        }
+        emit workoutEventStateChanged(bluetoothdevice::RESUMED);
+    }
+
+    paused = false;
+    stopped = false;
 
     QSettings settings;
     if (settings.value(QStringLiteral("top_bar_enabled"), true).toBool()) {
@@ -1894,6 +1942,14 @@ void homeform::Stop() {
         bluetoothManager->device()->stop();
     }
 
+    if (bluetoothManager->device()->supportStateMachine()) {
+        requestPause = false;
+        return;
+    }
+    onStopped();
+}
+
+void homeform::onStopped() {
     paused = false;
     stopped = true;
 
