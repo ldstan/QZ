@@ -333,6 +333,7 @@ void bluetooth::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     bool eliteRizerFound = eliteRizerName.startsWith(QStringLiteral("Disabled"));
     bool eliteSterzoSmartFound = eliteSterzoSmartName.startsWith(QStringLiteral("Disabled"));
     bool fake_bike = settings.value(QStringLiteral("applewatch_fakedevice"), false).toBool();
+    bool gpio_treadmill = settings.value(QStringLiteral("gpio_treadmill"), false).toBool();
     bool fakedevice_elliptical = settings.value(QStringLiteral("fakedevice_elliptical"), false).toBool();
     bool fakedevice_treadmill = settings.value(QStringLiteral("fakedevice_treadmill"), false).toBool();
     bool pafers_treadmill = settings.value(QStringLiteral("pafers_treadmill"), false).toBool();
@@ -474,6 +475,21 @@ void bluetooth::deviceDiscovered(const QBluetoothDeviceInfo &device) {
                 }
                 userTemplateManager->start(fakeBike);
                 innerTemplateManager->start(fakeBike);
+            } else if (gpio_treadmill && !gpioTreadmill) {
+                discoveryAgent->stop();
+                gpioTreadmill = new gpiotreadmill(noWriteResistance, noHeartService);
+                emit deviceConnected(b);
+                connect(gpioTreadmill, &bluetoothdevice::connectedAndDiscovered, this,
+                        &bluetooth::connectedAndDiscovered);
+                connect(gpioTreadmill, &gpiotreadmill::inclinationChanged, this, &bluetooth::inclinationChanged);
+                // connect(cscBike, SIGNAL(disconnected()), this, SLOT(restart()));
+                // connect(this, SIGNAL(searchingStop()), gpioTreadmill, SLOT(searchingStop())); //NOTE: Commented due
+                // to #358
+                if (!discoveryAgent->isActive()) {
+                    emit searchingStop();
+                }
+                userTemplateManager->start(gpioTreadmill);
+                innerTemplateManager->start(gpioTreadmill);
             } else if (fakedevice_elliptical && !fakeElliptical) {
                 this->stopDiscovery();
                 fakeElliptical = new fakeelliptical(noWriteResistance, noHeartService, false);
@@ -2147,6 +2163,11 @@ void bluetooth::restart() {
         delete fakeBike;
         fakeBike = nullptr;
     }
+    if (gpioTreadmill) {
+
+        delete gpioTreadmill;
+        gpioTreadmill = nullptr;
+    }
     if (fakeElliptical) {
 
         delete fakeElliptical;
@@ -2477,6 +2498,8 @@ bluetoothdevice *bluetooth::device() {
         return powerTreadmill;
     } else if (fakeBike) {
         return fakeBike;
+    } else if (gpioTreadmill) {
+        return gpioTreadmill;
     } else if (fakeElliptical) {
         return fakeElliptical;
     } else if (fakeTreadmill) {

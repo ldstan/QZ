@@ -2,6 +2,8 @@ QT += bluetooth widgets xml positioning quick networkauth websockets texttospeec
 QTPLUGIN += qavfmediaplayer
 QT+= charts
 
+LIBS += -lwiringPi
+
 unix:android: QT += androidextras gui-private
 qtHaveModule(httpserver) {
     QT += httpserver
@@ -69,6 +71,7 @@ SOURCES += \
     characteristicnotifier2acc.cpp \
     characteristicnotifier2acd.cpp \
     characteristicnotifier2ad9.cpp \
+	ConsoleReader.cpp \
     fakeelliptical.cpp \
    faketreadmill.cpp \
    kmlworkout.cpp \
@@ -155,6 +158,7 @@ SOURCES += \
 	flywheelbike.cpp \
 	ftmsbike.cpp \
     ftmsrower.cpp \
+    gpiotreadmill.cpp \
 	     gpx.cpp \
 		heartratebelt.cpp \
    homefitnessbuddy.cpp \
@@ -252,6 +256,7 @@ HEADERS += \
     characteristicnotifier2acc.h \
     characteristicnotifier2acd.h \
     characteristicnotifier2ad9.h \
+	ConsoleReader.h \
     definitions.h \
     fakeelliptical.h \
    faketreadmill.h \
@@ -326,6 +331,7 @@ HEADERS += \
     fitmetria_fanfit.h \
    fitplusbike.h \
     ftmsrower.h \
+    gpiotreadmill.h \
    homefitnessbuddy.h \
     horizongr7bike.h \
    iconceptbike.h \
