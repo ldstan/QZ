@@ -79,6 +79,8 @@ SOURCES += \
     $$PWD/devices/focustreadmill/focustreadmill.cpp \
     $$PWD/devices/jumprope.cpp \
     $$PWD/devices/trxappgateusbelliptical/trxappgateusbelliptical.cpp \
+    $$PWD/devices/trixterxdreamv1bike/qserialdatasource.cpp \
+    $$PWD/devices/trixterxdreamv1bike/serialdatasource.cpp \
 QTelnet.cpp \
 devices/bkoolbike/bkoolbike.cpp \
 devices/csaferower/csafe.cpp \
@@ -271,6 +273,10 @@ devices/ultrasportbike/ultrasportbike.cpp \
 virtualdevices/virtualrower.cpp \
 devices/wahookickrsnapbike/wahookickrsnapbike.cpp \
 devices/yesoulbike/yesoulbike.cpp \
+devices/trixterxdreamv1bike/trixterxdreamv1bike.cpp \
+devices/trixterxdreamv1bike/trixterxdreamv1client.cpp \
+devices/trixterxdreamv1bike/trixterxdreamv1serial.cpp \
+devices/trixterxdreamv1bike/trixterxdreamv1settings.cpp \
 trainprogram.cpp \
 devices/trxappgateusbtreadmill/trxappgateusbtreadmill.cpp \
 virtualdevices/virtualbike.cpp \
@@ -301,6 +307,8 @@ HEADERS += \
     $$PWD/devices/focustreadmill/focustreadmill.h \
     $$PWD/devices/jumprope.h \
     $$PWD/devices/trxappgateusbelliptical/trxappgateusbelliptical.h \
+    $$PWD/devices/trixterxdreamv1bike/qserialdatasource.h \
+    $$PWD/devices/trixterxdreamv1bike/serialdatasource.h \
     $$PWD/ergtable.h \
     $$PWD/treadmillErgTable.h \
 QTelnet.h \
@@ -332,6 +340,10 @@ devices/wahookickrheadwind/wahookickrheadwind.h \
 devices/ypooelliptical/ypooelliptical.h \
 devices/ziprotreadmill/ziprotreadmill.h \
 devices/computrainerbike/Computrainer.h \
+devices/trixterxdreamv1bike/trixterxdreamv1client.h \
+devices/trixterxdreamv1bike/trixterxdreamv1bike.h \
+devices/trixterxdreamv1bike/trixterxdreamv1serial.h \
+devices/trixterxdreamv1bike/trixterxdreamv1settings.h \
 PathController.h \
 characteristics/characteristicnotifier2a53.h \
 characteristics/characteristicnotifier2a5b.h \
