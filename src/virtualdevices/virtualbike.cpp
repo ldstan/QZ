@@ -45,6 +45,7 @@ virtualbike::virtualbike(bluetoothdevice *t, bool noWriteResistance, bool noHear
     notif2AD9 = new CharacteristicNotifier2AD9(Bike, this);
     notif2A63 = new CharacteristicNotifier2A63(Bike, this);
     notif2A37 = new CharacteristicNotifier2A37(Bike, this);
+    notif1224 = new CharacteristicNotifier1224(Bike, this);
     notif2A5B = new CharacteristicNotifier2A5B(Bike, this);
     writeP2AD9 = new CharacteristicWriteProcessor2AD9(bikeResistanceGain, bikeResistanceOffset, Bike, notif2AD9, this);
     connect(writeP2AD9, SIGNAL(changeInclination(double, double)), this, SIGNAL(changeInclination(double, double)));
@@ -196,6 +197,22 @@ virtualbike::virtualbike(bluetoothdevice *t, bool noWriteResistance, bool noHear
                     serviceDataFIT.addCharacteristic(charDataFIT4);
                     serviceDataFIT.addCharacteristic(charDataFIT5);
                     serviceDataFIT.addCharacteristic(charDataFIT6);
+
+                    QLowEnergyCharacteristicData charData;
+                    charData.setUuid(QBluetoothUuid(QStringLiteral("b4cc1225-bc02-4cae-adb9-1217ad2860d1")));
+                    charData.setProperties(QLowEnergyCharacteristic::Write | QLowEnergyCharacteristic::WriteNoResponse);
+
+                    QLowEnergyCharacteristicData charData2;
+                    charData2.setUuid(QBluetoothUuid(QStringLiteral("b4cc1224-bc02-4cae-adb9-1217ad2860d1")));
+                    charData2.setProperties(QLowEnergyCharacteristic::Notify);
+                    const QLowEnergyDescriptorData clientConfig2(QBluetoothUuid::ClientCharacteristicConfiguration, descriptor);
+
+                    charData2.addDescriptor(clientConfig2);
+
+                    serviceDataWattAtomBike.setType(QLowEnergyServiceData::ServiceTypePrimary);
+                    serviceDataWattAtomBike.setUuid(QBluetoothUuid(QStringLiteral("b4cc1223-bc02-4cae-adb9-1217ad2860d1")));
+                    serviceDataWattAtomBike.addCharacteristic(charData);
+                    serviceDataWattAtomBike.addCharacteristic(charData2);                    
                 } else if (power) {
 
                     QLowEnergyCharacteristicData charData;
@@ -393,6 +410,8 @@ virtualbike::virtualbike(bluetoothdevice *t, bool noWriteResistance, bool noHear
                 if (!cadence && !power) {
 
                     serviceFIT = leController->addService(serviceDataFIT);
+                    QThread::msleep(100); // give time to Android to add the service async.ly
+                    serviceWattAtomBike = leController->addService(serviceDataWattAtomBike);
                 } else {
                     service = leController->addService(serviceData);
                 }
@@ -419,6 +438,8 @@ virtualbike::virtualbike(bluetoothdevice *t, bool noWriteResistance, bool noHear
             if (!heart_only) {
                 if (!cadence && !power) {
                     QObject::connect(serviceFIT, &QLowEnergyService::characteristicChanged, this,
+                                     &virtualbike::characteristicChanged);
+                    QObject::connect(serviceWattAtomBike, &QLowEnergyService::characteristicChanged, this,
                                      &virtualbike::characteristicChanged);
                 } else {
                     QObject::connect(service, &QLowEnergyService::characteristicChanged, this,
@@ -1019,6 +1040,9 @@ void virtualbike::reconnect() {
             if (!cadence && !power) {
 
                 serviceFIT = leController->addService(serviceDataFIT);
+                QThread::msleep(100); // give time to Android to add the service async.ly
+                serviceWattAtomBike = leController->addService(serviceDataWattAtomBike);
+
             } else {
                 service = leController->addService(serviceData);
             }
@@ -1070,7 +1094,7 @@ void virtualbike::bikeProvider() {
         // really connected to a device
         if (h->virtualbike_updateFTMS(normalizeSpeed, (char)Bike->currentResistance().value(),
                                       (uint16_t)Bike->currentCadence().value() * 2, (uint16_t)normalizeWattage,
-                                      Bike->currentCrankRevolutions(), Bike->lastCrankEventTime())) {
+                                      Bike->currentCrankRevolutions(), Bike->lastCrankEventTime(), ((bike*)Bike)->gears())) {
             h->virtualbike_setHeartRate(Bike->currentHeart().value());
 
             uint8_t ftms_message[255];
@@ -1157,6 +1181,20 @@ void virtualbike::bikeProvider() {
                         return;
                     }
                     writeCharacteristic(serviceFIT, characteristic, value);
+
+                    QLowEnergyCharacteristic characteristic1 =
+                        serviceWattAtomBike->characteristic(QBluetoothUuid(QStringLiteral("b4cc1224-bc02-4cae-adb9-1217ad2860d1")));
+                    value.clear();
+                    static uint8_t seq = 0;
+                    ++seq;
+                    value.append(seq);
+                    value.append(0x03);
+                    value.append(0xB6);
+                    int8_t g = ((bike*)Bike)->gears();
+                    if(g < 1)
+                        g = 1;
+                    value.append(g);
+                    writeCharacteristic(serviceWattAtomBike, characteristic1, value);
                 }
             } else if (power) {
                 value.clear();
